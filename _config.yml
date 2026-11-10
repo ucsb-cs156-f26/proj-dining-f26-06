@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-dining-f26-06
 owner: ucsb-cs156-f26
 repo_name: proj-dining-f26-06
-pull_requests: [{"author":{"id":"U_kgDOCMLbkw","is_bot":false,"login":"annagornyitzki","name":"Anna Gornyitzki"},"headRefName":"ag-dining-theme","number":16,"title":"Restyle app with UCSB colors on Bootswatch Darkly","url":"https://github.com/ucsb-cs156-f26/proj-dining-f26-06/pull/16"}]
+pull_requests: [{"author":{"id":"U_kgDOBXU0vg","is_bot":false,"login":"XJ1729","name":"XJ"},"headRefName":"kc-delete-bug","number":17,"title":"Fix: My Reviews table not updating after deleting a review","url":"https://github.com/ucsb-cs156-f26/proj-dining-f26-06/pull/17"},{"author":{"id":"U_kgDOCMLbkw","is_bot":false,"login":"annagornyitzki","name":"Anna Gornyitzki"},"headRefName":"ag-dining-theme","number":16,"title":"Restyle app with UCSB colors on Bootswatch Darkly","url":"https://github.com/ucsb-cs156-f26/proj-dining-f26-06/pull/16"}]
