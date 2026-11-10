@@ -304,9 +304,7 @@ describe("useBackendMutation cache invalidation", () => {
     const queryClient = new QueryClient();
     const spy = vi.spyOn(queryClient, "invalidateQueries");
     const wrapper = ({ children }) => (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
     const { result } = renderHook(
       () =>
@@ -379,31 +377,31 @@ describe("useBackendMutation cache invalidation", () => {
   });
 
   test("useBackend without initialData starts with no data or status", async () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    axiosMock = new AxiosMockAdapter(axios);
+    const users = [{ id: 1, email: "cgaucho@ucsb.edu" }];
+    axiosMock.onGet("/api/admin/users").reply(200, users);
+
+    const { result } = renderHook(
+      () =>
+        useBackend(["/api/admin/users"], {
+          method: "GET",
+          url: "/api/admin/users",
+        }),
+      { wrapper },
+    );
+
+    // Before the fetch resolves there should be no data and no status
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.status).toBeUndefined();
+
+    await waitFor(() => expect(result.current.data).toEqual(users));
+    expect(result.current.status).toBe(200);
   });
-  const wrapper = ({ children }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-
-  axiosMock = new AxiosMockAdapter(axios);
-  const users = [{ id: 1, email: "cgaucho@ucsb.edu" }];
-  axiosMock.onGet("/api/admin/users").reply(200, users);
-
-  const { result } = renderHook(
-    () =>
-      useBackend(["/api/admin/users"], {
-        method: "GET",
-        url: "/api/admin/users",
-      }),
-    { wrapper },
-  );
-
-  // Before the fetch resolves there should be no data and no status
-  expect(result.current.data).toBeUndefined();
-  expect(result.current.status).toBeUndefined();
-
-  await waitFor(() => expect(result.current.data).toEqual(users));
-  expect(result.current.status).toBe(200);
-});
 });
