@@ -296,3 +296,114 @@ describe("utils/useBackend tests", () => {
     });
   });
 });
+
+describe("useBackendMutation cache invalidation", () => {
+  let axiosMock;
+
+  const setup = (queryKey) => {
+    const queryClient = new QueryClient();
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    const wrapper = ({ children }) => (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    );
+    const { result } = renderHook(
+      () =>
+        useBackendMutation(
+          () => ({ method: "DELETE", url: "/api/reviews" }),
+          {},
+          queryKey,
+        ),
+      { wrapper },
+    );
+    return { result, spy };
+  };
+
+  beforeEach(() => {
+    axiosMock = new AxiosMockAdapter(axios);
+    axiosMock.onDelete("/api/reviews").reply(200, {});
+  });
+
+  afterEach(() => {
+    axiosMock.restore();
+    axiosMock = undefined;
+  });
+
+  test("invalidates each key in an array separately", async () => {
+    const { result, spy } = setup([
+      "/api/reviews/userReviews",
+      "/api/reviews/needsmoderation",
+    ]);
+
+    act(() => result.current.mutate({}));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+    expect(spy).toHaveBeenCalledWith({
+      queryKey: ["/api/reviews/userReviews"],
+    });
+    expect(spy).toHaveBeenCalledWith({
+      queryKey: ["/api/reviews/needsmoderation"],
+    });
+  });
+
+  test("invalidates a single-key array", async () => {
+    const { result, spy } = setup(["/api/reviews/userReviews"]);
+
+    act(() => result.current.mutate({}));
+
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+    expect(spy).toHaveBeenCalledWith({
+      queryKey: ["/api/reviews/userReviews"],
+    });
+  });
+
+  test("does not invalidate when queryKey is null", async () => {
+    const { result, spy } = setup(null);
+
+    act(() => result.current.mutate({}));
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await act(async () => {}); // let onSettled run before asserting
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("does not invalidate when queryKey is not an array", async () => {
+    const { result, spy } = setup("/api/reviews/userReviews");
+
+    act(() => result.current.mutate({}));
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await act(async () => {}); // let onSettled run before asserting
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("useBackend without initialData starts with no data or status", async () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const wrapper = ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  axiosMock = new AxiosMockAdapter(axios);
+  const users = [{ id: 1, email: "cgaucho@ucsb.edu" }];
+  axiosMock.onGet("/api/admin/users").reply(200, users);
+
+  const { result } = renderHook(
+    () =>
+      useBackend(["/api/admin/users"], {
+        method: "GET",
+        url: "/api/admin/users",
+      }),
+    { wrapper },
+  );
+
+  // Before the fetch resolves there should be no data and no status
+  expect(result.current.data).toBeUndefined();
+  expect(result.current.status).toBeUndefined();
+
+  await waitFor(() => expect(result.current.data).toEqual(users));
+  expect(result.current.status).toBe(200);
+});
+});
