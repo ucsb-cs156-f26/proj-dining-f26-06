@@ -9,22 +9,23 @@ import edu.ucsb.cs156.dining.models.UserDTO;
 import edu.ucsb.cs156.dining.repositories.AdminRepository;
 import edu.ucsb.cs156.dining.repositories.ModeratorRepository;
 import edu.ucsb.cs156.dining.repositories.UserRepository;
+import edu.ucsb.cs156.dining.services.UserDataDTOService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.StreamSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -48,8 +49,11 @@ public class UsersController extends ApiController {
 
   @Autowired ObjectMapper mapper;
 
+  @Autowired UserDataDTOService userDataDTOService;
+
   /**
-   * This method returns a list of all users. Accessible only to users with the role "ROLE_ADMIN".
+   * Original endpoint: returns ALL users as a plain array (with admin/moderator flags). Kept so the
+   * existing frontend keeps working until it is migrated to /paged.
    *
    * @return a list of all users
    * @throws JsonProcessingException if there is an error processing the JSON
@@ -58,12 +62,28 @@ public class UsersController extends ApiController {
   @PreAuthorize("hasRole('ROLE_ADMIN')")
   @GetMapping("/admin/users")
   public ResponseEntity<String> users() throws JsonProcessingException {
-
     Iterable<User> users = userRepository.findAll();
-    List<UserDTO> userDTOs =
-        StreamSupport.stream(users.spliterator(), false).map(this::userDTO).toList();
+    List<UserDTO> userDTOs = new ArrayList<>();
+    for (User user : users) {
+      userDTOs.add(userDTO(user));
+    }
     String body = mapper.writeValueAsString(userDTOs);
     return ResponseEntity.ok().body(body);
+  }
+
+  /**
+   * Returns a page of users, always sorted by user id so rows never jump around.
+   *
+   * @param pageable page number and size (any sort in the request is ignored)
+   * @return a page of users
+   */
+  @Operation(summary = "Get a paged list of all users")
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  @GetMapping("/admin/users/paged")
+  public Page<UserDTO> usersPaged(Pageable pageable) {
+    Pageable sortedById =
+        PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id"));
+    return userDataDTOService.getUserDataDTOs(sortedById);
   }
 
   /**
