@@ -5,6 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.dining.entities.User;
 import edu.ucsb.cs156.dining.models.UserDTO;
 import edu.ucsb.cs156.dining.repositories.AdminRepository;
@@ -27,6 +28,11 @@ class UserDataDTOServiceTests {
   @Mock AdminRepository adminRepository;
   @Mock ModeratorRepository moderatorRepository;
 
+  // reads a boolean flag from the DTO's JSON, so it doesn't depend on accessor names
+  private static boolean flag(UserDTO dto, String name) {
+    return new ObjectMapper().findAndRegisterModules().valueToTree(dto).get(name).asBoolean();
+  }
+
   @Test
   void returns_page_of_user_dtos() {
     User u1 = User.builder().id(1L).email("a@ucsb.edu").build();
@@ -47,6 +53,13 @@ class UserDataDTOServiceTests {
 
     assertEquals(2, result.getContent().size());
     assertEquals(5, result.getTotalElements());
+
+    UserDTO first = result.getContent().get(0);
+    UserDTO second = result.getContent().get(1);
+    assertEquals(true, flag(first, "admin"));
+    assertEquals(false, flag(first, "moderator"));
+    assertEquals(false, flag(second, "admin"));
+    assertEquals(true, flag(second, "moderator"));
   }
 
   @Test
@@ -64,7 +77,28 @@ class UserDataDTOServiceTests {
     Page<UserDTO> result = service.getUserDataDTOs(pageable);
 
     assertEquals(1, result.getContent().size());
+    assertEquals(true, flag(result.getContent().get(0), "admin"));
+    assertEquals(false, flag(result.getContent().get(0), "moderator"));
     // the email is in app.admin.emails, so the database check is skipped
     verify(adminRepository, never()).existsByEmail("root@ucsb.edu");
+  }
+
+  @Test
+  void plain_user_is_neither_admin_nor_moderator() {
+    User u1 = User.builder().id(1L).email("plain@ucsb.edu").build();
+    Pageable pageable = PageRequest.of(0, 1, Sort.by("id"));
+
+    when(userRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(u1), pageable, 1));
+    when(adminRepository.existsByEmail("plain@ucsb.edu")).thenReturn(false);
+    when(moderatorRepository.existsByEmail("plain@ucsb.edu")).thenReturn(false);
+
+    UserDataDTOService service =
+        new UserDataDTOService(
+            userRepository, adminRepository, moderatorRepository, List.of("root@ucsb.edu"));
+
+    UserDTO dto = service.getUserDataDTOs(pageable).getContent().get(0);
+
+    assertEquals(false, flag(dto, "admin"));
+    assertEquals(false, flag(dto, "moderator"));
   }
 }

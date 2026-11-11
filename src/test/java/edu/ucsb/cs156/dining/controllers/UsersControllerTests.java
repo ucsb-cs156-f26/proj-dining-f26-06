@@ -77,7 +77,11 @@ public class UsersControllerTests extends ControllerTestCase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(2))
         .andExpect(jsonPath("$[0].id").value(1))
-        .andExpect(jsonPath("$[1].id").value(2));
+        .andExpect(jsonPath("$[0].admin").value(true))
+        .andExpect(jsonPath("$[0].moderator").value(false))
+        .andExpect(jsonPath("$[1].id").value(2))
+        .andExpect(jsonPath("$[1].admin").value(false))
+        .andExpect(jsonPath("$[1].moderator").value(true));
 
     verify(userRepository, times(1)).findAll();
   }
@@ -230,6 +234,21 @@ public class UsersControllerTests extends ControllerTestCase {
   @WithMockUser(roles = {"USER"})
   public void regular_users_cannot_update_alias_moderation() throws Exception {
     mockMvc.perform(post("/api/currentUser/updateAliasModeration")).andExpect(status().is(403));
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users__plain_user_is_not_admin_or_moderator() throws Exception {
+    User u = User.builder().id(1L).email("plain@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u));
+    when(adminRepository.existsByEmail("plain@example.org")).thenReturn(false);
+    when(moderatorRepository.existsByEmail("plain@example.org")).thenReturn(false);
+
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].admin").value(false))
+        .andExpect(jsonPath("$[0].moderator").value(false));
   }
 
   @Test
@@ -451,6 +470,20 @@ public class UsersControllerTests extends ControllerTestCase {
     // superadmin@example.org comes from @TestPropertySource(app.admin.emails)
     User u = User.builder().id(1L).email("superadmin@example.org").build();
     when(userRepository.findAll()).thenReturn(List.of(u));
+
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].admin").value(true));
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void user_in_admin_emails_and_repo_is_marked_admin() throws Exception {
+    // superadmin@example.org is in app.admin.emails
+    User u = User.builder().id(1L).email("superadmin@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u));
+    when(adminRepository.existsByEmail("superadmin@example.org")).thenReturn(true);
 
     mockMvc
         .perform(get("/api/admin/users"))
