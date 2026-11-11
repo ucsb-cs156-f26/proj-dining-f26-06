@@ -8,7 +8,7 @@ export default function Footer({ systemInfo }) {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   return (
-    <footer className="bg-light pt-3 pt-md-4 pb-4 pb-md-5" data-testid="Footer">
+    <footer className="bg-dark pt-3 pt-md-4 pb-4 pb-md-5" data-testid="Footer">
       <Container>
         This app is a class project of{" "}
         <a
