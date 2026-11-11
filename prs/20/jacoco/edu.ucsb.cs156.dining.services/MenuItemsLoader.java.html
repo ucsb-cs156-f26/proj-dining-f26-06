@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MenuItemsLoader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">proj-dining</a> &gt; <a href="index.source.html" class="el_package">edu.ucsb.cs156.dining.services</a> &gt; <span class="el_source">MenuItemsLoader.java</span></div><h1>MenuItemsLoader.java</h1><pre class="source lang-java linenums">package edu.ucsb.cs156.dining.services;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.ucsb.cs156.dining.models.DiningCommons;
+import edu.ucsb.cs156.dining.models.Entree;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+
+/**
+ * Downloads every MenuItem for the current month from the UCSB Dining API and stores them in the
+ * database. Intended to be called once at startup, so that users don't depend on someone having
+ * visited a given day's menu for its items to exist.
+ *
+ * &lt;p&gt;Requests that get an HTTP 429 (Too Many Requests) are retried with exponential backoff
+ * (honoring a {@code Retry-After} header when present). If the retries are exhausted, the whole
+ * load stops rather than continuing to hammer the API. If the API key is not configured, no
+ * requests are sent at all.
+ */
+<span class="fc" id="L28">@Slf4j</span>
+@Service
+public class MenuItemsLoader {
+
+  /** The default value of app.ucsb.api.consumer_key when UCSB_API_KEY has not been set. */
+  public static final String PLACEHOLDER_API_KEY = &quot;see-instructions-in-readme&quot;;
+
+  public static final int MAX_ATTEMPTS = 5;
+  public static final long BASE_BACKOFF_MS = 1000;
+  public static final long MAX_BACKOFF_MS = 60_000;
+
+  /** A call to the UCSB API that may throw. */
+  @FunctionalInterface
+  interface ApiCall&lt;T&gt; {
+    T call() throws Exception;
+  }
+
+  /** Abstraction over Thread.sleep so tests don't really wait. */
+  @FunctionalInterface
+  interface Sleeper {
+    void sleep(long millis) throws InterruptedException;
+  }
+
+  private final DiningCommonsService diningCommonsService;
+  private final UCSBDiningMenuService menuService;
+  private final UCSBDiningMenuItemsService menuItemsService;
+  private final ObjectMapper objectMapper;
+  private final String apiKey;
+
+<span class="fc" id="L57">  Clock clock = Clock.system(ZoneId.of(&quot;America/Los_Angeles&quot;));</span>
+<span class="fc" id="L58">  Sleeper sleeper = Thread::sleep;</span>
+
+  public MenuItemsLoader(
+      DiningCommonsService diningCommonsService,
+      UCSBDiningMenuService menuService,
+      UCSBDiningMenuItemsService menuItemsService,
+      ObjectMapper objectMapper,
+<span class="fc" id="L65">      @Value(&quot;${app.ucsb.api.consumer_key}&quot;) String apiKey) {</span>
+<span class="fc" id="L66">    this.diningCommonsService = diningCommonsService;</span>
+<span class="fc" id="L67">    this.menuService = menuService;</span>
+<span class="fc" id="L68">    this.menuItemsService = menuItemsService;</span>
+<span class="fc" id="L69">    this.objectMapper = objectMapper;</span>
+<span class="fc" id="L70">    this.apiKey = apiKey;</span>
+<span class="fc" id="L71">  }</span>
+
+  boolean apiKeyMissing() {
+<span class="fc bfc" id="L74" title="All 6 branches covered.">    return apiKey == null || apiKey.isBlank() || PLACEHOLDER_API_KEY.equals(apiKey);</span>
+  }
+
+  /**
+   * Loads all MenuItems for every day of the current month, for every dining commons. Never throws:
+   * problems are logged.
+   */
+  public void loadCurrentMonth() {
+<span class="fc bfc" id="L82" title="All 2 branches covered.">    if (apiKeyMissing()) {</span>
+<span class="fc" id="L83">      log.warn(&quot;UCSB API key is not set; skipping startup load of current month's menu items&quot;);</span>
+<span class="fc" id="L84">      return;</span>
+    }
+
+    try {
+<span class="fc" id="L88">      YearMonth month = YearMonth.now(clock);</span>
+<span class="fc" id="L89">      log.info(&quot;Loading menu items for {}&quot;, month);</span>
+<span class="fc" id="L90">      List&lt;DiningCommons&gt; commons = withRetry(diningCommonsService::get);</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">      for (int day = 1; day &lt;= month.lengthOfMonth(); day++) {</span>
+<span class="fc" id="L92">        LocalDate date = month.atDay(day);</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        for (DiningCommons dc : commons) {</span>
+<span class="fc" id="L94">          loadDay(date, dc.getCode());</span>
+<span class="fc" id="L95">        }</span>
+      }
+<span class="fc" id="L97">      log.info(&quot;Finished loading menu items for {}&quot;, month);</span>
+<span class="fc" id="L98">    } catch (InterruptedException e) {</span>
+<span class="fc" id="L99">      Thread.currentThread().interrupt();</span>
+<span class="fc" id="L100">      log.warn(&quot;Startup load of menu items was interrupted&quot;);</span>
+<span class="fc" id="L101">    } catch (Exception e) {</span>
+<span class="fc" id="L102">      log.error(&quot;Startup load of menu items stopped early: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L103">    }</span>
+<span class="fc" id="L104">  }</span>
+
+  private void loadDay(LocalDate date, String commonsCode) throws Exception {
+<span class="fc" id="L107">    String dateString = date.toString();</span>
+    String mealsJson;
+    try {
+<span class="fc" id="L110">      mealsJson = withRetry(() -&gt; menuService.getJSON(dateString, commonsCode));</span>
+<span class="fc" id="L111">    } catch (HttpClientErrorException.TooManyRequests | InterruptedException e) {</span>
+<span class="fc" id="L112">      throw e;</span>
+<span class="fc" id="L113">    } catch (Exception e) {</span>
+<span class="fc" id="L114">      log.error(&quot;Could not get meals for {} on {}: {}&quot;, commonsCode, dateString, e.getMessage());</span>
+<span class="fc" id="L115">      return;</span>
+<span class="fc" id="L116">    }</span>
+<span class="fc bfc" id="L117" title="All 4 branches covered.">    if (mealsJson == null || mealsJson.isBlank()) {</span>
+<span class="fc" id="L118">      return; // commons is closed that day</span>
+    }
+
+    JsonNode meals;
+    try {
+<span class="fc" id="L123">      meals = objectMapper.readTree(mealsJson);</span>
+<span class="fc" id="L124">    } catch (Exception e) {</span>
+<span class="fc" id="L125">      log.error(&quot;Could not parse meals for {} on {}: {}&quot;, commonsCode, dateString, e.getMessage());</span>
+<span class="fc" id="L126">      return;</span>
+<span class="fc" id="L127">    }</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">    for (JsonNode meal : meals) {</span>
+<span class="fc" id="L129">      loadMeal(dateString, commonsCode, meal.path(&quot;code&quot;).asText());</span>
+<span class="fc" id="L130">    }</span>
+<span class="fc" id="L131">  }</span>
+
+  private void loadMeal(String dateString, String commonsCode, String mealCode) throws Exception {
+    try {
+<span class="fc" id="L135">      List&lt;Entree&gt; entrees =</span>
+<span class="fc" id="L136">          withRetry(() -&gt; menuItemsService.get(dateString, commonsCode, mealCode));</span>
+<span class="fc" id="L137">      menuItemsService.getOrCreateMenuItems(commonsCode, mealCode, entrees);</span>
+<span class="fc" id="L138">    } catch (HttpClientErrorException.TooManyRequests | InterruptedException e) {</span>
+<span class="fc" id="L139">      throw e;</span>
+<span class="fc" id="L140">    } catch (Exception e) {</span>
+<span class="fc" id="L141">      log.error(</span>
+          &quot;Could not load items for {} {} on {}: {}&quot;,
+          commonsCode,
+          mealCode,
+          dateString,
+<span class="fc" id="L146">          e.getMessage());</span>
+<span class="fc" id="L147">    }</span>
+<span class="fc" id="L148">  }</span>
+
+  /** Runs the call, retrying with backoff on HTTP 429 up to MAX_ATTEMPTS total attempts. */
+  &lt;T&gt; T withRetry(ApiCall&lt;T&gt; call) throws Exception {
+<span class="fc" id="L152">    for (int attempt = 1; ; attempt++) {</span>
+      try {
+<span class="fc" id="L154">        return call.call();</span>
+<span class="fc" id="L155">      } catch (HttpClientErrorException.TooManyRequests e) {</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (attempt &gt;= MAX_ATTEMPTS) {</span>
+<span class="fc" id="L157">          throw e;</span>
+        }
+<span class="fc" id="L159">        long delay = backoffMillis(attempt, e);</span>
+<span class="fc" id="L160">        log.warn(&quot;Rate limited by UCSB API (attempt {}); waiting {} ms&quot;, attempt, delay);</span>
+<span class="fc" id="L161">        sleeper.sleep(delay);</span>
+      }
+    }
+  }
+
+  static long backoffMillis(int attempt, HttpClientErrorException e) {
+<span class="fc" id="L167">    long millis = BASE_BACKOFF_MS &lt;&lt; (attempt - 1);</span>
+<span class="fc" id="L168">    HttpHeaders headers = e.getResponseHeaders();</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">    String retryAfter = headers == null ? null : headers.getFirst(HttpHeaders.RETRY_AFTER);</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">    if (retryAfter != null) {</span>
+      try {
+<span class="fc" id="L172">        millis = Long.parseLong(retryAfter.trim()) * 1000;</span>
+<span class="fc" id="L173">      } catch (NumberFormatException ignored) {</span>
+        // not a number of seconds (could be an HTTP date); use exponential backoff instead
+<span class="fc" id="L175">      }</span>
+    }
+<span class="fc" id="L177">    return Math.min(millis, MAX_BACKOFF_MS);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
