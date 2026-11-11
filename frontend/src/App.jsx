@@ -27,7 +27,8 @@ import CommonsMealAveragesPage from "main/pages/Statistics/CommonsMealAveragesPa
 
 import { hasRole, useCurrentUser } from "main/utils/currentUser";
 
-import "bootstrap/dist/css/bootstrap.css";
+import "bootswatch/dist/darkly/bootstrap.min.css";
+import "main/styles/theme.css";
 import "react-toastify/dist/ReactToastify.css";
 import MenuItemPage from "main/pages/MenuItem/MenuItemPage";
 

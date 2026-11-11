@@ -1,0 +1,74 @@
+/* UCSB Dining theme, layered on top of Bootswatch Darkly */
+:root {
+  /* UCSB palette */
+  --ucsb-navy: #003660;
+  --ucsb-navy-dark: #002645;
+  --ucsb-gold: #febc0f;
+  --ucsb-gold-dark: #d99e00;
+  --ucsb-teal: #03859b;
+  --ucsb-seafoam: #0da89a;
+  --ucsb-moss: #7b8d39;
+  --dining-radius: 0.75rem;
+
+  /* Navy as Bootstrap's primary color (navbar bg-primary uses the -rgb one) */
+  --bs-primary: var(--ucsb-navy);
+  --bs-primary-rgb: 0, 54, 96;
+
+  /* Gold links, since navy text is unreadable on a dark background */
+  --bs-link-color: var(--ucsb-gold);
+  --bs-link-color-rgb: 254, 188, 15;
+  --bs-link-hover-color: var(--ucsb-gold-dark);
+  --bs-link-hover-color-rgb: 217, 158, 0;
+
+  /* Optional: teal and seafoam for info and success */
+  --bs-info: var(--ucsb-teal);
+  --bs-info-rgb: 3, 133, 155;
+  --bs-success: var(--ucsb-seafoam);
+  --bs-success-rgb: 13, 168, 154;
+}
+
+/* Navbar */
+.navbar-brand {
+  font-weight: 700;
+  color: var(--ucsb-gold) !important;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  color: var(--ucsb-gold);
+}
+.navbar {
+  border-bottom: 3px solid var(--ucsb-gold);
+}
+
+/* Buttons */
+.btn {
+  border-radius: var(--dining-radius);
+}
+.btn-primary {
+  --bs-btn-bg: var(--ucsb-navy);
+  --bs-btn-border-color: var(--ucsb-gold);
+  --bs-btn-hover-bg: var(--ucsb-navy-dark);
+  --bs-btn-hover-border-color: var(--ucsb-gold);
+  --bs-btn-active-bg: var(--ucsb-navy-dark);
+  --bs-btn-active-border-color: var(--ucsb-gold);
+  --bs-btn-disabled-bg: var(--ucsb-navy);
+  --bs-btn-disabled-border-color: var(--ucsb-navy);
+  --bs-btn-focus-shadow-rgb: 254, 188, 15;
+}
+/* Gold button, with dark text for readability */
+.btn-warning {
+  --bs-btn-color: #1a1a1a;
+  --bs-btn-bg: var(--ucsb-gold);
+  --bs-btn-border-color: var(--ucsb-gold);
+  --bs-btn-hover-color: #1a1a1a;
+  --bs-btn-hover-bg: var(--ucsb-gold-dark);
+  --bs-btn-hover-border-color: var(--ucsb-gold-dark);
+}
+
+/* Footer */
+footer {
+  border-top: 3px solid var(--ucsb-gold);
+}
+footer a {
+  color: var(--ucsb-gold);
+}
