@@ -21,6 +21,7 @@ import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.repositories.ReviewRepository;
 import edu.ucsb.cs156.dining.repositories.UserRepository;
 import edu.ucsb.cs156.dining.services.CurrentUserService;
+import edu.ucsb.cs156.dining.services.ModeratorNotificationService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
 import edu.ucsb.cs156.dining.testconfig.TestConfig;
 import java.time.LocalDateTime;
@@ -49,6 +50,8 @@ public class ReviewControllerTests extends ControllerTestCase {
   @MockBean UserRepository userRepository;
 
   @MockBean private MenuItemRepository menuItemRepository;
+
+  @MockBean ModeratorNotificationService moderatorNotificationService;
 
   @Autowired private CurrentUserService currentUserService;
 
@@ -140,6 +143,7 @@ public class ReviewControllerTests extends ControllerTestCase {
     String responseJson = response.getResponse().getContentAsString();
 
     assertEquals(responseJson, jsonReview);
+    verify(moderatorNotificationService, times(1)).notifyModerators(reviewReturn);
   }
 
   @WithMockUser(roles = {"USER"})
@@ -333,6 +337,7 @@ public class ReviewControllerTests extends ControllerTestCase {
     String responseJson = response.getResponse().getContentAsString();
     String reviewJson = mapper.writeValueAsString(reviewReturn);
     assertEquals(responseJson, reviewJson);
+    verify(moderatorNotificationService, never()).notifyModerators(any());
   }
 
   @WithMockUser(roles = {"ADMIN"})
