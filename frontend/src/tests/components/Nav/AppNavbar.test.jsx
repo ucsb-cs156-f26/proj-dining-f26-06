@@ -69,6 +69,35 @@ describe("AppNavbar tests", () => {
     ).not.toBeInTheDocument();
   });
 
+  test("renders the menu item search for a logged in user", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AppNavbar currentUser={currentUserFixtures.userOnly} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByTestId("appnavbar-menuitem-search"),
+    ).toBeInTheDocument();
+  });
+
+  test("does not render the menu item search when user is not logged in", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AppNavbar currentUser={currentUserFixtures.notLoggedIn} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("UCSB Dining");
+    expect(
+      screen.queryByTestId("appnavbar-menuitem-search"),
+    ).not.toBeInTheDocument();
+  });
+
   test("renders correctly for admin user", async () => {
     const currentUser = currentUserFixtures.adminUser;
     const doLogin = vi.fn();

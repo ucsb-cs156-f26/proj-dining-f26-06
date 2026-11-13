@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import { apiCurrentUserFixtures } from "fixtures/currentUserFixtures";
 import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
 import { ReviewFixtures } from "fixtures/reviewFixtures";
+import { menuItemFixtures } from "fixtures/menuItemFixtures";
 import axios from "axios";
 import AxiosMockAdapter from "axios-mock-adapter";
 
@@ -23,6 +24,12 @@ vi.mock("react-toastify", async () => {
 const axiosMock = new AxiosMockAdapter(axios);
 describe("ReviewsPage tests", () => {
   const testId = "Reviewstable";
+
+  const setupMenuItem = (itemid) => {
+    axiosMock
+      .onGet(`/api/diningcommons/menuitem?id=${itemid}`)
+      .reply(200, menuItemFixtures.menuItemWithCommons);
+  };
 
   const setupUserOnly = () => {
     axiosMock
@@ -59,6 +66,7 @@ describe("ReviewsPage tests", () => {
     const itemid = "7";
     setupUserOnly();
     axiosMock.onGet(`/api/reviews/approved/forItem/${itemid}`).timeout();
+    setupMenuItem(itemid);
 
     // SPY ON THE ADAPTER, NOT axios.request
     const adapterSpy = vi.spyOn(axios.defaults, "adapter");
@@ -85,6 +93,7 @@ describe("ReviewsPage tests", () => {
     axiosMock
       .onGet(`/api/reviews/approved/forItem/${itemid}`)
       .reply(200, ReviewFixtures.threeReviews);
+    setupMenuItem(itemid);
 
     renderWithRoute(itemid);
 
@@ -105,6 +114,7 @@ describe("ReviewsPage tests", () => {
     setupUserOnly();
 
     axiosMock.onGet(`/api/reviews/approved/forItem/${itemId}`).networkError();
+    setupMenuItem(itemId);
 
     renderWithRoute(itemId);
 
@@ -114,5 +124,68 @@ describe("ReviewsPage tests", () => {
       expect(toastMessage).toContain("GET");
       expect(toastMessage).toContain(`/api/reviews/approved/forItem/${itemId}`);
     });
+  });
+
+  test("shows the item name and dining commons", async () => {
+    const itemid = "7";
+    setupUserOnly();
+    setupMenuItem(itemid);
+    axiosMock
+      .onGet(`/api/reviews/approved/forItem/${itemid}`)
+      .reply(200, ReviewFixtures.threeReviews);
+
+    renderWithRoute(itemid);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reviews for Sliced Pastrami",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("ReviewsPage-commons")).toHaveTextContent(
+      "Served at carrillo",
+    );
+  });
+
+  test("falls back to the item id when the item cannot be loaded", async () => {
+    const itemid = "7";
+    setupUserOnly();
+    axiosMock.onGet(`/api/diningcommons/menuitem?id=${itemid}`).timeout();
+    axiosMock
+      .onGet(`/api/reviews/approved/forItem/${itemid}`)
+      .reply(200, ReviewFixtures.threeReviews);
+
+    renderWithRoute(itemid);
+
+    expect(
+      await screen.findByRole("heading", { name: "Reviews for Menu Item 7" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("ReviewsPage-commons")).not.toBeInTheDocument();
+  });
+
+  test("shows a review button linking to the post review page for logged in users", async () => {
+    const itemid = "7";
+    setupUserOnly();
+    setupMenuItem(itemid);
+    axiosMock.onGet(`/api/reviews/approved/forItem/${itemid}`).reply(200, []);
+
+    renderWithRoute(itemid);
+
+    const button = await screen.findByTestId("ReviewsPage-review-button");
+    expect(button).toHaveTextContent("Review this item");
+    expect(button).toHaveAttribute("href", "/reviews/post/7");
+  });
+
+  test("does not show a review button when not logged in", async () => {
+    const itemid = "7";
+    axiosMock.onGet("/api/currentUser").reply(403);
+    setupMenuItem(itemid);
+    axiosMock.onGet(`/api/reviews/approved/forItem/${itemid}`).reply(200, []);
+
+    renderWithRoute(itemid);
+
+    await screen.findByRole("heading", { name: "Reviews for Sliced Pastrami" });
+    expect(
+      screen.queryByTestId("ReviewsPage-review-button"),
+    ).not.toBeInTheDocument();
   });
 });
