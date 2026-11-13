@@ -2,6 +2,7 @@ package edu.ucsb.cs156.dining.controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -16,18 +17,24 @@ import edu.ucsb.cs156.dining.models.UserDTO;
 import edu.ucsb.cs156.dining.repositories.AdminRepository;
 import edu.ucsb.cs156.dining.repositories.ModeratorRepository;
 import edu.ucsb.cs156.dining.repositories.UserRepository;
+import edu.ucsb.cs156.dining.services.UserDataDTOService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
 import edu.ucsb.cs156.dining.testconfig.TestConfig;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MvcResult;
@@ -41,6 +48,7 @@ public class UsersControllerTests extends ControllerTestCase {
   @MockBean UserRepository userRepository;
   @MockBean AdminRepository adminRepository;
   @MockBean ModeratorRepository moderatorRepository;
+  @MockBean UserDataDTOService userDataDTOService;
 
   @Test
   public void users__logged_out() throws Exception {
@@ -57,46 +65,65 @@ public class UsersControllerTests extends ControllerTestCase {
   @Test
   public void users__admin_logged_in() throws Exception {
     // arrange
-    User u1 = User.builder().id(1L).email("user1@example.org").build();
-    User u2 = User.builder().id(2L).email("user2@example.org").build();
-    User u3 = User.builder().id(3L).email("superadmin@example.org").build();
-    User u = currentUserService.getCurrentUser().getUser();
+    User u1 = User.builder().id(1L).email("u1@example.org").build();
+    User u2 = User.builder().id(2L).email("u2@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u1, u2));
+    when(adminRepository.existsByEmail("u1@example.org")).thenReturn(true);
+    when(moderatorRepository.existsByEmail("u2@example.org")).thenReturn(true);
 
-    ArrayList<User> expectedUsers = new ArrayList<>();
-    expectedUsers.addAll(Arrays.asList(u1, u2, u3, u));
+    // act and assert: a plain array, not a Page object
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].id").value(1))
+        .andExpect(jsonPath("$[0].admin").value(true))
+        .andExpect(jsonPath("$[0].moderator").value(false))
+        .andExpect(jsonPath("$[1].id").value(2))
+        .andExpect(jsonPath("$[1].admin").value(false))
+        .andExpect(jsonPath("$[1].moderator").value(true));
 
-    when(userRepository.findAll()).thenReturn(expectedUsers);
-    when(adminRepository.existsByEmail(u1.getEmail())).thenReturn(false);
-    when(moderatorRepository.existsByEmail(u1.getEmail())).thenReturn(false);
-    when(adminRepository.existsByEmail(u2.getEmail())).thenReturn(true);
-    when(moderatorRepository.existsByEmail(u2.getEmail())).thenReturn(false);
-    when(moderatorRepository.existsByEmail(u3.getEmail())).thenReturn(false);
-    when(adminRepository.existsByEmail(u.getEmail())).thenReturn(false);
-    when(moderatorRepository.existsByEmail(u.getEmail())).thenReturn(true);
-    List<UserDTO> expectedUserDTOs =
-        Arrays.asList(
-            new UserDTO(u1, false, false),
-            new UserDTO(u2, true, false),
-            new UserDTO(u3, true, false),
-            new UserDTO(u, false, true));
-    String expectedJson = mapper.writeValueAsString(expectedUserDTOs);
-
-    // act
-    MvcResult response =
-        mockMvc.perform(get("/api/admin/users")).andExpect(status().isOk()).andReturn();
-
-    // assert
     verify(userRepository, times(1)).findAll();
-    verify(adminRepository, times(1)).existsByEmail(u1.getEmail());
-    verify(moderatorRepository, times(1)).existsByEmail(u1.getEmail());
-    verify(adminRepository, times(1)).existsByEmail(u2.getEmail());
-    verify(moderatorRepository, times(1)).existsByEmail(u2.getEmail());
-    verify(moderatorRepository, times(1)).existsByEmail(u3.getEmail());
-    verify(adminRepository, times(0)).existsByEmail(u3.getEmail());
-    verify(adminRepository, times(1)).existsByEmail(u.getEmail());
-    verify(moderatorRepository, times(1)).existsByEmail(u.getEmail());
-    String responseString = response.getResponse().getContentAsString();
-    assertEquals(expectedJson, responseString);
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_paged__admin_logged_in_is_always_sorted_by_id() throws Exception {
+    // arrange
+    User u1 = User.builder().id(1L).email("u1@example.org").build();
+    Page<UserDTO> page =
+        new PageImpl<>(
+            List.of(new UserDTO(u1, true, false)), PageRequest.of(0, 5, Sort.by("id")), 1);
+    when(userDataDTOService.getUserDataDTOs(any(Pageable.class))).thenReturn(page);
+
+    // act and assert: the caller asks for a different sort, which should be ignored
+    mockMvc
+        .perform(
+            get("/api/admin/users/paged")
+                .param("page", "0")
+                .param("size", "5")
+                .param("sort", "email,desc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content.length()").value(1));
+
+    ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+    verify(userDataDTOService, times(1)).getUserDataDTOs(captor.capture());
+    Pageable used = captor.getValue();
+    assertEquals(0, used.getPageNumber());
+    assertEquals(5, used.getPageSize());
+    assertEquals(Sort.by("id"), used.getSort());
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void users_paged__regular_user_is_forbidden() throws Exception {
+    mockMvc.perform(get("/api/admin/users/paged")).andExpect(status().isForbidden());
+  }
+
+  @Test
+  public void users_paged__logged_out_is_forbidden() throws Exception {
+    mockMvc.perform(get("/api/admin/users/paged")).andExpect(status().isForbidden());
   }
 
   @WithMockUser(roles = {"ADMIN", "USER"})
@@ -207,6 +234,21 @@ public class UsersControllerTests extends ControllerTestCase {
   @WithMockUser(roles = {"USER"})
   public void regular_users_cannot_update_alias_moderation() throws Exception {
     mockMvc.perform(post("/api/currentUser/updateAliasModeration")).andExpect(status().is(403));
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users__plain_user_is_not_admin_or_moderator() throws Exception {
+    User u = User.builder().id(1L).email("plain@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u));
+    when(adminRepository.existsByEmail("plain@example.org")).thenReturn(false);
+    when(moderatorRepository.existsByEmail("plain@example.org")).thenReturn(false);
+
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].admin").value(false))
+        .andExpect(jsonPath("$[0].moderator").value(false));
   }
 
   @Test
@@ -420,5 +462,32 @@ public class UsersControllerTests extends ControllerTestCase {
         .findByStatusAndProposedAliasNotNull(ModerationStatus.AWAITING_REVIEW);
 
     assertEquals(expectedJson, response.getResponse().getContentAsString());
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users__user_in_admin_emails_is_marked_admin() throws Exception {
+    // superadmin@example.org comes from @TestPropertySource(app.admin.emails)
+    User u = User.builder().id(1L).email("superadmin@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u));
+
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].admin").value(true));
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void user_in_admin_emails_and_repo_is_marked_admin() throws Exception {
+    // superadmin@example.org is in app.admin.emails
+    User u = User.builder().id(1L).email("superadmin@example.org").build();
+    when(userRepository.findAll()).thenReturn(List.of(u));
+    when(adminRepository.existsByEmail("superadmin@example.org")).thenReturn(true);
+
+    mockMvc
+        .perform(get("/api/admin/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].admin").value(true));
   }
 }
