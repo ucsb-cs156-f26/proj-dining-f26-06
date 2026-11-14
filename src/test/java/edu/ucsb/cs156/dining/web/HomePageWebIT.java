@@ -7,7 +7,10 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import edu.ucsb.cs156.dining.services.wiremock.DiningApiWireMock;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +31,16 @@ public class HomePageWebIT {
 
   private Browser browser;
   private Page page;
+
+  @BeforeAll
+  public static void setupDiningApiWireMock() {
+    DiningApiWireMock.start();
+  }
+
+  @AfterAll
+  public static void teardownDiningApiWireMock() {
+    DiningApiWireMock.stop();
+  }
 
   @BeforeEach
   public void setup() {
