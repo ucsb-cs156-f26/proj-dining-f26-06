@@ -62,13 +62,14 @@ describe("MenuItemSearch tests", () => {
 
     await userEvent.type(screen.getByRole("combobox"), "sliced  ");
 
-    await screen.findByText("Sliced Pastrami");
-    expect(axiosMock.history.get.length).toBeGreaterThan(0);
+    // Slow typing can trigger an earlier search (e.g. for "sli"), so wait for the final one.
+    await waitFor(() =>
+      expect(axiosMock.history.get.at(-1)?.params).toEqual({ query: "sliced" }),
+    );
     axiosMock.history.get.forEach((request) => {
       expect(request.url).toBe(searchUrl);
       expect(request.params.query).toBe(request.params.query.trim());
     });
-    expect(axiosMock.history.get.at(-1).params).toEqual({ query: "sliced" });
   });
 
   test("navigates to the reviews page of the selected item", async () => {
