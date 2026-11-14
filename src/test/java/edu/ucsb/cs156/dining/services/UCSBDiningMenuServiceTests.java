@@ -2,6 +2,7 @@ package edu.ucsb.cs156.dining.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
@@ -20,6 +21,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @RestClientTest(UCSBDiningMenuService.class)
@@ -94,6 +96,22 @@ public class UCSBDiningMenuServiceTests {
     String result = ucs.getJSON(dateTime, diningCommonCode);
 
     assertNull(result);
+  }
+
+  @Test
+  public void test_getJSON_throws_on_429() {
+    String expectedURL = UCSBDiningMenuService.ALL_MEAL_TIMES_AT_A_DINING_COMMON_ENDPOINT;
+    expectedURL = expectedURL.replace("{apiHost}", apiHost);
+    expectedURL = expectedURL.replace("{date-time}", "2024-08-16");
+    expectedURL = expectedURL.replace("{dining-common-code}", "carrillo");
+
+    this.mockRestServiceServer
+        .expect(requestTo(expectedURL))
+        .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+    assertThrows(
+        HttpClientErrorException.TooManyRequests.class,
+        () -> ucs.getJSON("2024-08-16", "carrillo"));
   }
 
   @Test

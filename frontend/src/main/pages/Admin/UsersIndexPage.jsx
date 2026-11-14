@@ -10,20 +10,21 @@ export default function UsersIndexPage() {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const { data: users } = useBackend(
+  const { data: usersPage } = useBackend(
     // Stryker disable next-line ArrayDeclaration,StringLiteral: query key caching detail
-    ["/api/admin/users"],
-    // Stryker disable next-line StringLiteral: axios treats a falsy method as "GET"
-    { method: "GET", url: "/api/admin/users" },
-    // Stryker disable next-line ArrayDeclaration: empty array is the correct default
-    [],
+    ["/api/admin/users", "paged", currentPage, pageSize],
+    {
+      // Stryker disable next-line StringLiteral: axios treats a falsy method as "GET"
+      method: "GET",
+      url: "/api/admin/users/paged",
+      params: { page: currentPage, size: pageSize },
+    },
+    // Stryker disable next-line ObjectLiteral,ArrayDeclaration: empty page is the correct default
+    { content: [], totalPages: 0 },
   );
 
-  const totalPages = Math.ceil(users.length / pageSize);
-  const paginatedUsers = users.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize,
-  );
+  const users = usersPage.content;
+  const totalPages = usersPage.totalPages;
 
   const handlePageSizeChange = (e) => {
     setPageSize(Number(e.target.value));
@@ -50,7 +51,7 @@ export default function UsersIndexPage() {
             ))}
           </Form.Select>
         </Form.Group>
-        <UsersTable users={paginatedUsers} />
+        <UsersTable users={users} />
         <div className="d-flex align-items-center gap-2 mt-2">
           <button
             className="btn btn-outline-secondary"
