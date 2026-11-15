@@ -72,7 +72,9 @@ describe("MenuItemPage", () => {
       expect(axiosMock.history.get.length).toBe(3);
     });
 
-    expect(screen.getByText("Breakfast")).toBeInTheDocument();
+    expect(screen.getByText("Carrillo")).toBeInTheDocument();
+    expect(screen.getByText(/Breakfast/)).toBeInTheDocument();
+    expect(screen.getByText(/Tuesday, March 11, 2025/)).toBeInTheDocument();
     expect(
       screen.queryByText("MenuItemTable-cell-header-col-name"),
     ).not.toBeInTheDocument();
