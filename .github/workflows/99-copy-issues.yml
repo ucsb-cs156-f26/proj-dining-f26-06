@@ -34,5 +34,4 @@ jobs:
             echo "No open issues labeled '$TAG' found in $STARTER_REPO" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          # shellcheck disable=SC2086
-          bash .github/scripts/copy-issue-tree.sh $numbers
+          bash .github/scripts/copy-issue-tree.sh "$numbers"

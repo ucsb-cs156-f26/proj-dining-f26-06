@@ -3,6 +3,7 @@
 # into this repo, re-creating the parent/sub-issue links between the copies.
 #
 # Usage: copy-issue-tree.sh <starter-issue-number>...
+#        copy-issue-tree.sh "<whitespace- or newline-separated numbers>"
 #
 # Environment:
 #   STARTER_REPO    owner/name of the repo to copy from (required)
@@ -87,7 +88,16 @@ copy_sub_issues() {
   done
 }
 
-for n in "$@"; do
+# Each argument may hold one number or several separated by whitespace or
+# newlines (e.g. the output of `gh issue list ... --jq '.[].number'`), so
+# callers can pass a list as a single quoted argument.
+numbers=()
+for arg in "$@"; do
+  read -r -d '' -a parts <<<"$arg" || true
+  numbers+=("${parts[@]}")
+done
+
+for n in "${numbers[@]}"; do
   state="$(gh api "repos/$STARTER_REPO/issues/$n" --jq '.state' 2>/dev/null || true)"
   if [ "$state" != "open" ]; then
     log "ERROR: issue $n could not be retrieved as an open issue from $STARTER_REPO"
