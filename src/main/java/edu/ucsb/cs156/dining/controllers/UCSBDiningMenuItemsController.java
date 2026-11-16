@@ -3,6 +3,7 @@ package edu.ucsb.cs156.dining.controllers;
 import edu.ucsb.cs156.dining.entities.MenuItem;
 import edu.ucsb.cs156.dining.errors.EntityNotFoundException;
 import edu.ucsb.cs156.dining.models.Entree;
+import edu.ucsb.cs156.dining.models.MenuItemSearchResult;
 import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.services.UCSBDiningMenuItemsService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
@@ -68,5 +69,24 @@ public class UCSBDiningMenuItemsController extends ApiController {
       throw new EntityNotFoundException(MenuItem.class, id);
     }
     return ResponseEntity.ok().body(menuItem.get());
+  }
+
+  @Operation(
+      summary = "Search menu items by name (case-insensitive, returns at most 20 results)",
+      description =
+          "Returns the id, name and dining commons code of menu items whose name contains the"
+              + " query. A blank query returns an empty list.")
+  @GetMapping(value = "/menuitem/search", produces = "application/json")
+  public ResponseEntity<List<MenuItemSearchResult>> search_menu_items(
+      @Parameter(description = "Text to look for in the menu item name") @RequestParam
+          String query) {
+    if (query.isBlank()) {
+      return ResponseEntity.ok().body(List.of());
+    }
+    List<MenuItemSearchResult> results =
+        menuItemRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAscIdAsc(query).stream()
+            .map(MenuItemSearchResult::new)
+            .toList();
+    return ResponseEntity.ok().body(results);
   }
 }
