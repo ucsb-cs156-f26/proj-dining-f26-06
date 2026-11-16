@@ -5,7 +5,6 @@ const menuItemFixtures = {
     mealCode: "lunch",
     name: "Sliced Pastrami",
     station: "Deli",
-    reviews: [],
   },
   oneMenuItem: [
     {

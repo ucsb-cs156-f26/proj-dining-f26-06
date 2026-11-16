@@ -126,7 +126,7 @@ describe("ReviewsPage tests", () => {
     });
   });
 
-  test("shows the item name and dining commons", async () => {
+  test("shows the item name, dining commons, meal and station", async () => {
     const itemid = "7";
     setupUserOnly();
     setupMenuItem(itemid);
@@ -142,7 +142,7 @@ describe("ReviewsPage tests", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("ReviewsPage-commons")).toHaveTextContent(
-      "Served at carrillo",
+      /^Served at carrillo for lunch, Deli station$/,
     );
   });
 

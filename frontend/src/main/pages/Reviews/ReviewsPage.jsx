@@ -32,7 +32,8 @@ export default function ReviewsPage() {
         <h1>Reviews for {menuItem ? menuItem.name : `Menu Item ${itemid}`}</h1>
         {menuItem && (
           <p data-testid="ReviewsPage-commons">
-            Served at {menuItem.diningCommonsCode}
+            Served at {menuItem.diningCommonsCode} for {menuItem.mealCode},{" "}
+            {menuItem.station} station
           </p>
         )}
         {hasRole(currentUser, "ROLE_USER") && (
