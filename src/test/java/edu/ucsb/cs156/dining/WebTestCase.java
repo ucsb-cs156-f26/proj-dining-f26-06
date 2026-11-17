@@ -8,10 +8,12 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import edu.ucsb.cs156.dining.services.wiremock.DiningApiWireMock;
 import edu.ucsb.cs156.dining.services.wiremock.WiremockServiceImpl;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
@@ -35,11 +37,18 @@ public abstract class WebTestCase {
     WiremockServiceImpl.setupOauthMocks(wireMockServer, false);
 
     wireMockServer.start();
+    DiningApiWireMock.start();
   }
 
   @AfterAll
   public static void teardownWiremock() {
     wireMockServer.stop();
+    DiningApiWireMock.stop();
+  }
+
+  @BeforeEach
+  public void resetDiningApiStubs() {
+    DiningApiWireMock.resetToBasicStubs();
   }
 
   @AfterEach
