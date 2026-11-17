@@ -86,12 +86,15 @@ public class UCSBDiningMenuService {
 <span class="fc" id="L86">      retVal = re.getBody();</span>
 
 <span class="fc" id="L88">      log.info(&quot;json: {} contentType: {} statusCode: {}&quot;, retVal, contentType, statusCode);</span>
-<span class="fc" id="L89">    } catch (HttpClientErrorException | HttpServerErrorException e) {</span>
-<span class="fc" id="L90">      log.info(&quot;Dining commons {} closed on {}: {}&quot;, diningCommonCode, dateTime, e.getMessage());</span>
-<span class="fc" id="L91">      return null;</span>
-<span class="fc" id="L92">    }</span>
+<span class="fc" id="L89">    } catch (HttpClientErrorException.TooManyRequests e) {</span>
+      // A rate limit is not a closed dining commons; let callers back off and retry.
+<span class="fc" id="L91">      throw e;</span>
+<span class="fc" id="L92">    } catch (HttpClientErrorException | HttpServerErrorException e) {</span>
+<span class="fc" id="L93">      log.info(&quot;Dining commons {} closed on {}: {}&quot;, diningCommonCode, dateTime, e.getMessage());</span>
+<span class="fc" id="L94">      return null;</span>
+<span class="fc" id="L95">    }</span>
 
-<span class="fc" id="L94">    return retVal;</span>
+<span class="fc" id="L97">    return retVal;</span>
   }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

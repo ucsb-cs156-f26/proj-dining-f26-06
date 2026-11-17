@@ -3,6 +3,7 @@
 import edu.ucsb.cs156.dining.entities.MenuItem;
 import edu.ucsb.cs156.dining.errors.EntityNotFoundException;
 import edu.ucsb.cs156.dining.models.Entree;
+import edu.ucsb.cs156.dining.models.MenuItemSearchResult;
 import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.services.UCSBDiningMenuItemsService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
@@ -23,8 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = &quot;UCSBDiningMenuItems&quot;)
 @RestController
 @RequestMapping(&quot;/api/diningcommons&quot;)
-<span class="fc" id="L26">@Slf4j</span>
-<span class="fc" id="L27">public class UCSBDiningMenuItemsController extends ApiController {</span>
+<span class="fc" id="L27">@Slf4j</span>
+<span class="fc" id="L28">public class UCSBDiningMenuItemsController extends ApiController {</span>
 
   @Autowired UCSBDiningMenuItemsService ucsbDiningMenuItemsService;
 
@@ -44,30 +45,49 @@ import org.springframework.web.bind.annotation.RestController;
       @PathVariable(&quot;meal-code&quot;) String mealCode)
       throws Exception {
 
-<span class="fc" id="L47">    List&lt;Entree&gt; body = ucsbDiningMenuItemsService.get(datetime, diningCommonsCode, mealCode);</span>
+<span class="fc" id="L48">    List&lt;Entree&gt; body = ucsbDiningMenuItemsService.get(datetime, diningCommonsCode, mealCode);</span>
 
-<span class="fc" id="L49">    List&lt;MenuItem&gt; menuItems =</span>
-<span class="fc" id="L50">        ucsbDiningMenuItemsService.getOrCreateMenuItems(diningCommonsCode, mealCode, body);</span>
+<span class="fc" id="L50">    List&lt;MenuItem&gt; menuItems =</span>
+<span class="fc" id="L51">        ucsbDiningMenuItemsService.getOrCreateMenuItems(diningCommonsCode, mealCode, body);</span>
 
-<span class="fc" id="L52">    menuItems.forEach(</span>
+<span class="fc" id="L53">    menuItems.forEach(</span>
         (item) -&gt; {
-<span class="fc" id="L54">          item.setReviews(</span>
-<span class="fc" id="L55">              item.getReviews().stream()</span>
-<span class="fc bfc" id="L56" title="All 2 branches covered.">                  .filter((review) -&gt; review.getStatus() == ModerationStatus.APPROVED)</span>
-<span class="fc" id="L57">                  .toList());</span>
-<span class="fc" id="L58">        });</span>
-<span class="fc" id="L59">    return ResponseEntity.ok().body(menuItems);</span>
+<span class="fc" id="L55">          item.setReviews(</span>
+<span class="fc" id="L56">              item.getReviews().stream()</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">                  .filter((review) -&gt; review.getStatus() == ModerationStatus.APPROVED)</span>
+<span class="fc" id="L58">                  .toList());</span>
+<span class="fc" id="L59">        });</span>
+<span class="fc" id="L60">    return ResponseEntity.ok().body(menuItems);</span>
   }
 
   @Operation(summary = &quot;Get a single menu item by ID&quot;)
   @GetMapping(value = &quot;/menuitem&quot;, produces = &quot;application/json&quot;)
   public ResponseEntity&lt;MenuItem&gt; get_menu_item_by_id(
       @Parameter(description = &quot;ID of the menu item&quot;) @RequestParam long id) throws Exception {
-<span class="fc" id="L66">    Optional&lt;MenuItem&gt; menuItem = menuItemRepository.findById(id);</span>
-<span class="fc bfc" id="L67" title="All 2 branches covered.">    if (menuItem.isEmpty()) {</span>
-<span class="fc" id="L68">      throw new EntityNotFoundException(MenuItem.class, id);</span>
+<span class="fc" id="L67">    Optional&lt;MenuItem&gt; menuItem = menuItemRepository.findById(id);</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">    if (menuItem.isEmpty()) {</span>
+<span class="fc" id="L69">      throw new EntityNotFoundException(MenuItem.class, id);</span>
     }
-<span class="fc" id="L70">    return ResponseEntity.ok().body(menuItem.get());</span>
+<span class="fc" id="L71">    return ResponseEntity.ok().body(menuItem.get());</span>
+  }
+
+  @Operation(
+      summary = &quot;Search menu items by name (case-insensitive, returns at most 20 results)&quot;,
+      description =
+          &quot;Returns the id, name and dining commons code of menu items whose name contains the&quot;
+              + &quot; query. A blank query returns an empty list.&quot;)
+  @GetMapping(value = &quot;/menuitem/search&quot;, produces = &quot;application/json&quot;)
+  public ResponseEntity&lt;List&lt;MenuItemSearchResult&gt;&gt; search_menu_items(
+      @Parameter(description = &quot;Text to look for in the menu item name&quot;) @RequestParam
+          String query) {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">    if (query.isBlank()) {</span>
+<span class="fc" id="L84">      return ResponseEntity.ok().body(List.of());</span>
+    }
+<span class="fc" id="L86">    List&lt;MenuItemSearchResult&gt; results =</span>
+<span class="fc" id="L87">        menuItemRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAscIdAsc(query).stream()</span>
+<span class="fc" id="L88">            .map(MenuItemSearchResult::new)</span>
+<span class="fc" id="L89">            .toList();</span>
+<span class="fc" id="L90">    return ResponseEntity.ok().body(results);</span>
   }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
