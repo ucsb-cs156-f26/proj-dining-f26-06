@@ -1,5 +1,6 @@
 package edu.ucsb.cs156.dining.controllers;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -13,6 +14,7 @@ import edu.ucsb.cs156.dining.config.SecurityConfig;
 import edu.ucsb.cs156.dining.entities.MenuItem;
 import edu.ucsb.cs156.dining.entities.Review;
 import edu.ucsb.cs156.dining.models.Entree;
+import edu.ucsb.cs156.dining.models.MenuItemSummary;
 import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.services.UCSBDiningMenuItemsService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
@@ -28,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @WebMvcTest(value = UCSBDiningMenuItemsController.class)
 @Import(SecurityConfig.class)
@@ -99,19 +102,32 @@ public class UCSBDiningMenuItemsControllerTests extends ControllerTestCase {
   @Test
   public void get_menu_item_by_id_success() throws Exception {
     // arrange
+    Review pendingReview =
+        Review.builder()
+            .id(10L)
+            .itemsStars(2L)
+            .reviewerComments("not approved yet")
+            .status(ModerationStatus.AWAITING_REVIEW)
+            .build();
     MenuItem menuItem =
-        new MenuItem(1L, "portola", "dinner", "Spicy Tuna Roll", "International", null);
+        new MenuItem(
+            1L, "portola", "dinner", "Spicy Tuna Roll", "International", List.of(pendingReview));
     when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-    // act and assert
-    mockMvc
-        .perform(get("/api/diningcommons/menuitem?id=1").contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(1))
-        .andExpect(jsonPath("$.name").value("Spicy Tuna Roll"))
-        .andExpect(jsonPath("$.station").value("International"))
-        .andExpect(jsonPath("$.diningCommonsCode").value("portola"))
-        .andExpect(jsonPath("$.mealCode").value("dinner"));
+    // act
+    MvcResult response =
+        mockMvc
+            .perform(
+                get("/api/diningcommons/menuitem?id=1").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    // assert: only the summary fields are returned, and reviews are left out
+    String expectedJson =
+        objectMapper.writeValueAsString(
+            new MenuItemSummary(1L, "Spicy Tuna Roll", "portola", "dinner", "International"));
+    assertEquals(expectedJson, response.getResponse().getContentAsString());
+    verify(menuItemRepository, times(1)).findById(1L);
   }
 
   @Test
