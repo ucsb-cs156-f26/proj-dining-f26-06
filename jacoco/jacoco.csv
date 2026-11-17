@@ -14,7 +14,7 @@ proj-dining,edu.ucsb.cs156.dining.controllers,StatisticsController,0,713,0,64,0,
 proj-dining,edu.ucsb.cs156.dining.controllers,UserInfoController,0,46,0,4,0,8,0,4,0,2
 proj-dining,edu.ucsb.cs156.dining.controllers,SystemInfoController,0,7,0,0,0,2,0,2,0,2
 proj-dining,edu.ucsb.cs156.dining.controllers,ReviewController,0,414,0,30,0,92,0,36,0,21
-proj-dining,edu.ucsb.cs156.dining.controllers,UCSBDiningMenuItemsController,0,87,0,6,0,23,0,10,0,7
+proj-dining,edu.ucsb.cs156.dining.controllers,UCSBDiningMenuItemsController,0,90,0,6,0,23,0,10,0,7
 proj-dining,edu.ucsb.cs156.dining.controllers,AdminController,0,110,0,6,0,22,0,10,0,7
 proj-dining,edu.ucsb.cs156.dining.controllers,ApiController,0,32,0,0,0,8,0,6,0,6
 proj-dining,edu.ucsb.cs156.dining.controllers,UCSBDiningMenuController,0,29,0,6,0,6,0,6,0,3
@@ -24,6 +24,7 @@ proj-dining,edu.ucsb.cs156.dining.startup,DiningStartup,0,48,0,2,0,13,0,5,0,4
 proj-dining,edu.ucsb.cs156.dining.errors,EntityNotFoundException,0,17,0,0,0,2,0,1,0,1
 proj-dining,edu.ucsb.cs156.dining.statuses,ModerationStatus,0,21,0,0,0,4,0,1,0,1
 proj-dining,edu.ucsb.cs156.dining.models,DiningCommons,0,13,0,0,0,3,0,1,0,1
+proj-dining,edu.ucsb.cs156.dining.models,MenuItemSummary,0,31,0,0,0,8,0,2,0,2
 proj-dining,edu.ucsb.cs156.dining.models,MenuItemSearchResult,0,21,0,0,0,3,0,2,0,2
 proj-dining,edu.ucsb.cs156.dining.models,CurrentUserDTO,0,9,0,0,0,1,0,1,0,1
 proj-dining,edu.ucsb.cs156.dining.models,UserDTO,0,84,0,0,0,17,0,2,0,2
