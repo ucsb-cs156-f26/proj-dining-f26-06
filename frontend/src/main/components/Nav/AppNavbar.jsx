@@ -2,6 +2,7 @@ import { Button, Container, Nav, Navbar, NavDropdown } from "react-bootstrap";
 import { Link } from "react-router";
 import { hasRole } from "main/utils/currentUser";
 import AppNavbarLocalhost from "main/components/Nav/AppNavbarLocalhost";
+import MenuItemSearch from "main/components/Nav/MenuItemSearch";
 
 export default function AppNavbar({
   currentUser,
@@ -144,6 +145,15 @@ export default function AppNavbar({
                 <></>
               )}
             </Nav>
+
+            {hasRole(currentUser, "ROLE_USER") && (
+              <div
+                className="my-2 my-xl-0 mx-xl-3"
+                data-testid="appnavbar-menuitem-search"
+              >
+                <MenuItemSearch />
+              </div>
+            )}
 
             <Nav className="ml-auto">
               {currentUser && currentUser.loggedIn ? (
