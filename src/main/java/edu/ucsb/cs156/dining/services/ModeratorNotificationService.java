@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -89,7 +88,6 @@ public class ModeratorNotificationService {
 
       HttpHeaders headers = new HttpHeaders();
       headers.setBearerAuth(accessToken);
-      headers.setContentType(MediaType.APPLICATION_JSON);
       Map<String, String> body = Map.of("raw", buildRawMessage(recipients, review));
       restTemplate.postForEntity(GMAIL_SEND_URL, new HttpEntity<>(body, headers), String.class);
       log.info("Emailed {} moderator(s) about review {}", recipients.size(), review.getId());
