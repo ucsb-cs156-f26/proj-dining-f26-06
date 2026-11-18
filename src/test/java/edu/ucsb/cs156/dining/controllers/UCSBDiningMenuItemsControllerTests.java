@@ -1,5 +1,9 @@
 package edu.ucsb.cs156.dining.controllers;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -10,6 +14,7 @@ import edu.ucsb.cs156.dining.config.SecurityConfig;
 import edu.ucsb.cs156.dining.entities.MenuItem;
 import edu.ucsb.cs156.dining.entities.Review;
 import edu.ucsb.cs156.dining.models.Entree;
+import edu.ucsb.cs156.dining.models.MenuItemSummary;
 import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.services.UCSBDiningMenuItemsService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
@@ -25,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @WebMvcTest(value = UCSBDiningMenuItemsController.class)
 @Import(SecurityConfig.class)
@@ -96,19 +102,32 @@ public class UCSBDiningMenuItemsControllerTests extends ControllerTestCase {
   @Test
   public void get_menu_item_by_id_success() throws Exception {
     // arrange
+    Review pendingReview =
+        Review.builder()
+            .id(10L)
+            .itemsStars(2L)
+            .reviewerComments("not approved yet")
+            .status(ModerationStatus.AWAITING_REVIEW)
+            .build();
     MenuItem menuItem =
-        new MenuItem(1L, "portola", "dinner", "Spicy Tuna Roll", "International", null);
+        new MenuItem(
+            1L, "portola", "dinner", "Spicy Tuna Roll", "International", List.of(pendingReview));
     when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-    // act and assert
-    mockMvc
-        .perform(get("/api/diningcommons/menuitem?id=1").contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(1))
-        .andExpect(jsonPath("$.name").value("Spicy Tuna Roll"))
-        .andExpect(jsonPath("$.station").value("International"))
-        .andExpect(jsonPath("$.diningCommonsCode").value("portola"))
-        .andExpect(jsonPath("$.mealCode").value("dinner"));
+    // act
+    MvcResult response =
+        mockMvc
+            .perform(
+                get("/api/diningcommons/menuitem?id=1").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    // assert: only the summary fields are returned, and reviews are left out
+    String expectedJson =
+        objectMapper.writeValueAsString(
+            new MenuItemSummary(1L, "Spicy Tuna Roll", "portola", "dinner", "International"));
+    assertEquals(expectedJson, response.getResponse().getContentAsString());
+    verify(menuItemRepository, times(1)).findById(1L);
   }
 
   @Test
@@ -120,5 +139,78 @@ public class UCSBDiningMenuItemsControllerTests extends ControllerTestCase {
     mockMvc
         .perform(get("/api/diningcommons/menuitem?id=1").contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  public void search_menu_items_returns_matches_without_reviews() throws Exception {
+    // arrange
+    Review review =
+        Review.builder()
+            .id(10L)
+            .itemsStars(4L)
+            .reviewerComments("Great!")
+            .status(ModerationStatus.AWAITING_REVIEW)
+            .build();
+    MenuItem pizzaPortola =
+        new MenuItem(1L, "portola", "dinner", "Pizza", "Pizza Station", List.of(review));
+    MenuItem pizzaCarrillo = new MenuItem(2L, "carrillo", "lunch", "Pizza", "Grill", List.of());
+    when(menuItemRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAscIdAsc("pizza"))
+        .thenReturn(List.of(pizzaPortola, pizzaCarrillo));
+
+    // act and assert
+    mockMvc
+        .perform(get("/api/diningcommons/menuitem/search?query=pizza"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].id").value(1))
+        .andExpect(jsonPath("$[0].name").value("Pizza"))
+        .andExpect(jsonPath("$[0].diningCommonsCode").value("portola"))
+        .andExpect(jsonPath("$[0].reviews").doesNotExist())
+        .andExpect(jsonPath("$[0].mealCode").doesNotExist())
+        .andExpect(jsonPath("$[0].station").doesNotExist())
+        .andExpect(jsonPath("$[1].id").value(2))
+        .andExpect(jsonPath("$[1].name").value("Pizza"))
+        .andExpect(jsonPath("$[1].diningCommonsCode").value("carrillo"));
+    verify(menuItemRepository, times(1))
+        .findTop20ByNameContainingIgnoreCaseOrderByNameAscIdAsc("pizza");
+  }
+
+  @Test
+  public void search_menu_items_returns_empty_list_when_nothing_matches() throws Exception {
+    // arrange
+    when(menuItemRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAscIdAsc("zzz"))
+        .thenReturn(List.of());
+
+    // act and assert
+    mockMvc
+        .perform(get("/api/diningcommons/menuitem/search?query=zzz"))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[]", true));
+  }
+
+  @Test
+  public void search_menu_items_returns_empty_list_for_empty_query_without_searching()
+      throws Exception {
+    mockMvc
+        .perform(get("/api/diningcommons/menuitem/search?query="))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[]", true));
+    verifyNoInteractions(menuItemRepository);
+  }
+
+  @Test
+  public void search_menu_items_returns_empty_list_for_whitespace_query_without_searching()
+      throws Exception {
+    mockMvc
+        .perform(get("/api/diningcommons/menuitem/search").param("query", "   "))
+        .andExpect(status().isOk())
+        .andExpect(content().json("[]", true));
+    verifyNoInteractions(menuItemRepository);
+  }
+
+  @Test
+  public void search_menu_items_requires_query_parameter() throws Exception {
+    mockMvc.perform(get("/api/diningcommons/menuitem/search")).andExpect(status().isBadRequest());
+    verifyNoInteractions(menuItemRepository);
   }
 }
