@@ -1,4 +1,11 @@
 const menuItemFixtures = {
+  menuItemWithCommons: {
+    id: 7,
+    diningCommonsCode: "carrillo",
+    mealCode: "lunch",
+    name: "Sliced Pastrami",
+    station: "Deli",
+  },
   oneMenuItem: [
     {
       id: 1,
