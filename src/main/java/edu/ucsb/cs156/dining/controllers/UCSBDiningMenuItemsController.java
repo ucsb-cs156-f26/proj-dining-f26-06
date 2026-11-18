@@ -4,6 +4,7 @@ import edu.ucsb.cs156.dining.entities.MenuItem;
 import edu.ucsb.cs156.dining.errors.EntityNotFoundException;
 import edu.ucsb.cs156.dining.models.Entree;
 import edu.ucsb.cs156.dining.models.MenuItemSearchResult;
+import edu.ucsb.cs156.dining.models.MenuItemSummary;
 import edu.ucsb.cs156.dining.repositories.MenuItemRepository;
 import edu.ucsb.cs156.dining.services.UCSBDiningMenuItemsService;
 import edu.ucsb.cs156.dining.statuses.ModerationStatus;
@@ -60,15 +61,19 @@ public class UCSBDiningMenuItemsController extends ApiController {
     return ResponseEntity.ok().body(menuItems);
   }
 
-  @Operation(summary = "Get a single menu item by ID")
+  @Operation(
+      summary = "Get a single menu item by ID",
+      description =
+          "Returns the id, name, dining commons code, meal code and station of the menu item."
+              + " Reviews are not included.")
   @GetMapping(value = "/menuitem", produces = "application/json")
-  public ResponseEntity<MenuItem> get_menu_item_by_id(
+  public ResponseEntity<MenuItemSummary> get_menu_item_by_id(
       @Parameter(description = "ID of the menu item") @RequestParam long id) throws Exception {
     Optional<MenuItem> menuItem = menuItemRepository.findById(id);
     if (menuItem.isEmpty()) {
       throw new EntityNotFoundException(MenuItem.class, id);
     }
-    return ResponseEntity.ok().body(menuItem.get());
+    return ResponseEntity.ok().body(new MenuItemSummary(menuItem.get()));
   }
 
   @Operation(

@@ -20,6 +20,9 @@ vi.mock("react-toastify", async () => {
   };
 });
 
+// NEW: lets each test choose which dining commons the mocked URL contains
+const mockParams = vi.hoisted(() => ({ commons: "carrillo" }));
+
 vi.mock("react-router", async () => {
   const originalModule = await vi.importActual("react-router");
   return {
@@ -27,7 +30,7 @@ vi.mock("react-router", async () => {
     ...originalModule,
     useParams: () => ({
       "date-time": "2025-03-11",
-      "dining-commons-code": "carrillo",
+      "dining-commons-code": mockParams.commons, // CHANGED from "carrillo"
       meal: "breakfast",
     }),
   };
@@ -38,6 +41,7 @@ describe("MenuItemPage", () => {
   let queryClient;
 
   beforeEach(() => {
+    mockParams.commons = "carrillo"; // NEW: reset before every test
     axiosMock = new AxiosMockAdapter(axios);
     queryClient = new QueryClient();
 
@@ -72,7 +76,9 @@ describe("MenuItemPage", () => {
       expect(axiosMock.history.get.length).toBe(3);
     });
 
-    expect(screen.getByText("Breakfast")).toBeInTheDocument();
+    expect(screen.getByText("Carrillo")).toBeInTheDocument();
+    expect(screen.getByText(/Breakfast/)).toBeInTheDocument();
+    expect(screen.getByText(/Tuesday, March 11, 2025/)).toBeInTheDocument();
     expect(
       screen.queryByText("MenuItemTable-cell-header-col-name"),
     ).not.toBeInTheDocument();
@@ -105,5 +111,23 @@ describe("MenuItemPage", () => {
         screen.getByTestId(`MenuItemTable-cell-row-${i}-col-station`),
       ).toHaveTextContent(menuItemFixtures.fiveMenuItems[i].station);
     }
+  });
+
+  // NEW test: kills the `.join(" ")` -> `.join("")` mutant
+  test("formats a multi-word dining commons name", async () => {
+    mockParams.commons = "de-la-guerra";
+    axiosMock
+      .onGet("/api/diningcommons/2025-03-11/de-la-guerra/breakfast")
+      .reply(200, menuItemFixtures.fiveMenuItems);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <MenuItemPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("De La Guerra")).toBeInTheDocument();
   });
 });
