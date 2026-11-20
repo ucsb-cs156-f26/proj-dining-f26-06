@@ -71,7 +71,7 @@ describe("EditReviewPage tests", () => {
     expect(itemName).toHaveValue("Make Your Own Waffle (v)");
     expect(itemName).toBeDisabled();
     expect(screen.getByLabelText("Comments")).toHaveValue("good food");
-    expect(screen.getByLabelText("Stars (1 to 5)")).toHaveValue("4");
+    expect(screen.getByLabelText("Stars (1 to 5)")).toHaveValue(4);
     expect(screen.getByLabelText("Date and Time Item was Served")).toHaveValue(
       "2022-01-02T12:00",
     );
