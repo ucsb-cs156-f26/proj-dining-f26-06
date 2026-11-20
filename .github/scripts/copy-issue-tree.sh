@@ -16,6 +16,9 @@
 # sub-issue of another listed issue) is copied only once per run.
 
 set -euo pipefail
+# Keep `set -e` in effect inside $(...): copy_issue runs in a command
+# substitution, where a failed gh/jq call would otherwise be ignored.
+shopt -s inherit_errexit
 
 : "${STARTER_REPO:?STARTER_REPO is required}"
 DEST_REPO="${DEST_REPO:-${GITHUB_REPOSITORY:-}}"
@@ -53,6 +56,11 @@ copy_issue() {
   else
     new="$(jq '{title: .title, body: (.body // ""), labels: [.labels[].name]}' <<<"$json" \
       | gh api "repos/$DEST_REPO/issues" --input - --jq '.number')"
+    if [ -z "$new" ]; then
+      log "ERROR: failed to create copy of $STARTER_REPO#$n"
+      summary "ERROR: failed to create copy of https://github.com/$STARTER_REPO/issues/$n"
+      exit 1
+    fi
     if [ "$COMMENT_SOURCE" = "true" ]; then
       gh api "repos/$DEST_REPO/issues/$new/comments" \
         -f body="Copied from https://github.com/$STARTER_REPO/issues/$n" > /dev/null
