@@ -1,5 +1,6 @@
 package edu.ucsb.cs156.dining.models;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,4 +19,11 @@ public class ItemStatistic {
   private String station;
   private Double averageStars;
   private Long reviewCount;
+
+  /**
+   * A handful of the most recent non-blank reviewer comments for this item, most recent first. See
+   * {@link edu.ucsb.cs156.dining.controllers.StatisticsController#MAX_COMMENTS_PER_ITEM} for the
+   * cap.
+   */
+  @Builder.Default private List<String> comments = List.of();
 }
