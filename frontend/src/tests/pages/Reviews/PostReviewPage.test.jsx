@@ -51,7 +51,7 @@ describe("MyReviewsCreatePage - full coverage tests", () => {
     renderWithDefaultRouter();
     expect(await screen.findByLabelText(/item name/i)).toHaveValue("");
     expect(await screen.findByLabelText(/comments/i)).toHaveValue("");
-    expect(screen.getByLabelText(/stars/i)).toHaveValue("5");
+    expect(screen.getByLabelText(/stars/i)).toHaveValue(5);
     const dateInput = screen.getByLabelText(/date and time/i);
     expect(dateInput.value).not.toBe("");
   });
