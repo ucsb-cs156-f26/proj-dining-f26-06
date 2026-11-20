@@ -62,6 +62,16 @@ public class StatisticsControllerTests extends ControllerTestCase {
         .build();
   }
 
+  private Review review(MenuItem mi, long stars, LocalDateTime served, String comment) {
+    return Review.builder()
+        .itemsStars(stars)
+        .item(mi)
+        .dateItemServed(served)
+        .status(ModerationStatus.APPROVED)
+        .reviewerComments(comment)
+        .build();
+  }
+
   // ---------- cutoffForPeriod ----------
 
   @Test
@@ -215,6 +225,112 @@ public class StatisticsControllerTests extends ControllerTestCase {
 
     assertEquals(Long.valueOf(3L), result.get(1).getItemId());
     assertEquals(4.0, result.get(1).getAverageStars());
+  }
+
+  // ---------- comments ----------
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void best_items_include_comments_most_recently_served_first() throws Exception {
+    MenuItem waffle = item(1L, "Waffle", "carrillo", "breakfast", "Bakery");
+
+    List<Review> reviews =
+        Arrays.asList(
+            review(waffle, 5L, LocalDateTime.of(2025, 1, 1, 12, 0), "Oldest comment"),
+            review(waffle, 5L, LocalDateTime.of(2025, 3, 1, 12, 0), "Newest comment"),
+            review(waffle, 5L, LocalDateTime.of(2025, 2, 1, 12, 0), "Middle comment"));
+
+    when(reviewRepository.findByStatus(ModerationStatus.APPROVED)).thenReturn(reviews);
+
+    MvcResult response =
+        mockMvc.perform(get("/api/statistics/items/best")).andExpect(status().isOk()).andReturn();
+
+    List<ItemStatistic> result =
+        objectMapper.readValue(
+            response.getResponse().getContentAsString(),
+            new TypeReference<List<ItemStatistic>>() {});
+
+    assertEquals(1, result.size());
+    assertEquals(
+        List.of("Newest comment", "Middle comment", "Oldest comment"), result.get(0).getComments());
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void best_items_excludes_null_and_blank_comments() throws Exception {
+    MenuItem waffle = item(1L, "Waffle", "carrillo", "breakfast", "Bakery");
+    LocalDateTime t = LocalDateTime.of(2025, 4, 1, 12, 0);
+
+    List<Review> reviews =
+        Arrays.asList(
+            review(waffle, 5L, t, null),
+            review(waffle, 5L, t, ""),
+            review(waffle, 5L, t, "   "),
+            review(waffle, 5L, t, "The only real comment"));
+
+    when(reviewRepository.findByStatus(ModerationStatus.APPROVED)).thenReturn(reviews);
+
+    MvcResult response =
+        mockMvc.perform(get("/api/statistics/items/best")).andExpect(status().isOk()).andReturn();
+
+    List<ItemStatistic> result =
+        objectMapper.readValue(
+            response.getResponse().getContentAsString(),
+            new TypeReference<List<ItemStatistic>>() {});
+
+    assertEquals(1, result.size());
+    assertEquals(List.of("The only real comment"), result.get(0).getComments());
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void best_items_caps_comments_at_max_per_item() throws Exception {
+    MenuItem waffle = item(1L, "Waffle", "carrillo", "breakfast", "Bakery");
+
+    List<Review> reviews = new ArrayList<>();
+    int total = StatisticsController.MAX_COMMENTS_PER_ITEM + 2;
+    for (int i = 0; i < total; i++) {
+      reviews.add(
+          review(waffle, 5L, LocalDateTime.of(2025, 1, 1, 12, 0).plusDays(i), "Comment " + i));
+    }
+
+    when(reviewRepository.findByStatus(ModerationStatus.APPROVED)).thenReturn(reviews);
+
+    MvcResult response =
+        mockMvc.perform(get("/api/statistics/items/best")).andExpect(status().isOk()).andReturn();
+
+    List<ItemStatistic> result =
+        objectMapper.readValue(
+            response.getResponse().getContentAsString(),
+            new TypeReference<List<ItemStatistic>>() {});
+
+    List<String> comments = result.get(0).getComments();
+    assertEquals(StatisticsController.MAX_COMMENTS_PER_ITEM, comments.size());
+    // The most recently served reviews are the last ones added, so they should win the cap.
+    assertEquals("Comment " + (total - 1), comments.get(0));
+    assertEquals(
+        "Comment " + (total - StatisticsController.MAX_COMMENTS_PER_ITEM),
+        comments.get(comments.size() - 1));
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void worst_items_include_comments_too() throws Exception {
+    MenuItem mysteryMeat = item(1L, "Mystery Meat", "de-la-guerra", "dinner", "Grill");
+    LocalDateTime t = LocalDateTime.of(2025, 4, 1, 12, 0);
+
+    when(reviewRepository.findByStatus(ModerationStatus.APPROVED))
+        .thenReturn(List.of(review(mysteryMeat, 1L, t, "Would not recommend")));
+
+    MvcResult response =
+        mockMvc.perform(get("/api/statistics/items/worst")).andExpect(status().isOk()).andReturn();
+
+    List<ItemStatistic> result =
+        objectMapper.readValue(
+            response.getResponse().getContentAsString(),
+            new TypeReference<List<ItemStatistic>>() {});
+
+    assertEquals(List.of("Would not recommend"), result.get(0).getComments());
   }
 
   @WithMockUser(roles = {"USER"})

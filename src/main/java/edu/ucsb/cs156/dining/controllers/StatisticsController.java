@@ -63,6 +63,9 @@ public class StatisticsController extends ApiController {
 
   private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
+  /** Maximum number of reviewer comments included per item in {@link #aggregateByItem}. */
+  static final int MAX_COMMENTS_PER_ITEM = 5;
+
   /**
    * Returns the cutoff {@link LocalDateTime} for the supplied period. {@code ALL} (or any
    * unrecognised value) maps to {@code null}, meaning no lower bound.
@@ -141,9 +144,26 @@ public class StatisticsController extends ApiController {
               .station(item.getStation())
               .averageStars(total / count)
               .reviewCount(count)
+              .comments(recentComments(itemReviews))
               .build());
     }
     return stats;
+  }
+
+  /**
+   * Returns up to {@link #MAX_COMMENTS_PER_ITEM} non-blank reviewer comments from the given
+   * reviews, most recently served first.
+   */
+  private List<String> recentComments(List<Review> reviews) {
+    return reviews.stream()
+        .filter(r -> r.getReviewerComments() != null && !r.getReviewerComments().isBlank())
+        .sorted(
+            Comparator.comparing(
+                    Review::getDateItemServed, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed())
+        .map(Review::getReviewerComments)
+        .limit(MAX_COMMENTS_PER_ITEM)
+        .collect(Collectors.toList());
   }
 
   /** Rejects negative limits before they reach {@code Stream.limit}, which throws. */

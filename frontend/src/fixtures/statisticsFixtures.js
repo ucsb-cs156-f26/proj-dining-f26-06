@@ -8,6 +8,7 @@ const statisticsFixtures = {
       station: "Bakery",
       averageStars: 4.9,
       reviewCount: 12,
+      comments: ["So good!", "Best waffle on campus"],
     },
     {
       itemId: 2,
@@ -17,6 +18,7 @@ const statisticsFixtures = {
       station: "Stove",
       averageStars: 4.5,
       reviewCount: 8,
+      comments: [],
     },
     {
       itemId: 3,
