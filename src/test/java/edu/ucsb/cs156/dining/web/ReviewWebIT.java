@@ -49,7 +49,7 @@ public class ReviewWebIT extends WebTestCase {
     assertThat(page.locator("#review-item-name")).hasValue("Chicken Caesar Salad", HAS_VALUE);
 
     page.locator("#review-comments").fill("Crisp and fresh");
-    page.locator("#review-stars").selectOption("4");
+    page.locator("#review-stars").fill("4");
     page.locator("#review-date").fill("2026-11-04T12:00");
     page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit Review")).click();
 
