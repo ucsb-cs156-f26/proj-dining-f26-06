@@ -31,6 +31,11 @@ export default function ItemStatisticsTable({
       Header: "Reviews",
       accessor: "reviewCount",
     },
+    {
+      Header: "Comments",
+      accessor: "comments",
+      Cell: ({ value = [] }) => (value.length > 0 ? value.join(" | ") : "—"),
+    },
   ];
 
   return <OurTable data={items} columns={columns} testid={testIdPrefix} />;

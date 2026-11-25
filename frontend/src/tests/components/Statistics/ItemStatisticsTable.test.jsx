@@ -25,6 +25,9 @@ describe("ItemStatisticsTable tests", () => {
     expect(
       screen.getByTestId(`${testId}-cell-row-0-col-reviewCount`),
     ).toHaveTextContent("12");
+    expect(
+      screen.getByTestId(`${testId}-cell-row-0-col-comments`),
+    ).toHaveTextContent("So good! | Best waffle on campus");
 
     expect(
       screen.getByTestId(`${testId}-cell-row-2-col-itemName`),
@@ -32,6 +35,19 @@ describe("ItemStatisticsTable tests", () => {
     expect(
       screen.getByTestId(`${testId}-cell-row-2-col-averageStars`),
     ).toHaveTextContent("4.20");
+  });
+
+  test("shows a placeholder when an item has no comments", () => {
+    render(<ItemStatisticsTable items={statisticsFixtures.threeBestItems} />);
+
+    const testId = "ItemStatisticsTable";
+    // Soup has an explicit empty comments array; Pizza has no comments field at all.
+    expect(
+      screen.getByTestId(`${testId}-cell-row-1-col-comments`),
+    ).toHaveTextContent("—");
+    expect(
+      screen.getByTestId(`${testId}-cell-row-2-col-comments`),
+    ).toHaveTextContent("—");
   });
 
   test("renders headers correctly", () => {
@@ -55,6 +71,9 @@ describe("ItemStatisticsTable tests", () => {
     expect(
       screen.getByTestId("ItemStatisticsTable-header-reviewCount"),
     ).toHaveTextContent("Reviews");
+    expect(
+      screen.getByTestId("ItemStatisticsTable-header-comments"),
+    ).toHaveTextContent("Comments");
   });
 
   test("accepts a custom testIdPrefix", () => {
